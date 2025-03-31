@@ -22,12 +22,11 @@ const io = new Server(httpServer, {
 const rooms = {};
 
 io.on("connection", (socket) => {
-  const { roomId, username, isAdmin } = socket.handshake.query;
+  const { roomId, username, role } = socket.handshake.query;
   console.log("\n=== Новое подключение ===");
   console.log("Socket ID:", socket.id);
   console.log("Room ID:", roomId);
   console.log("Username:", username);
-  console.log("Is Admin:", isAdmin);
 
   if (!roomId || !username) {
     console.log("❌ Отключение: отсутствуют roomId или username");
@@ -52,10 +51,11 @@ io.on("connection", (socket) => {
   const user = {
     id: socket.id,
     username: username,
-    isAdmin: isAdmin === "true",
-    isHost: rooms[roomId].host === username,
-    isModerator: false,
   };
+
+  if (role === "viewer" && rooms[roomId].broadcasterOffer) {
+    socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
+  }
 
   // Добавление пользователя в комнату
   rooms[roomId].users.push(user);
@@ -73,9 +73,6 @@ io.on("connection", (socket) => {
   // Отправка информации о подключении
   io.to(roomId).emit("userJoined", {
     username: user.username,
-    isAdmin: user.isAdmin,
-    isHost: user.isHost,
-    isModerator: user.isModerator,
   });
   console.log("📢 Отправлено уведомление о подключении пользователя");
 
@@ -96,8 +93,6 @@ io.on("connection", (socket) => {
       ...message,
       id: Date.now().toString(),
       timestamp: new Date(),
-      isHost: user.isHost || false,
-      isModerator: user.isModerator || false,
     };
 
     rooms[roomId].messages.push(newMessage);
@@ -111,6 +106,7 @@ io.on("connection", (socket) => {
   socket.on("offer", (offer) => {
     console.log("📡 Получен WebRTC offer");
     socket.to(roomId).emit("offer", offer);
+    rooms[roomId].broadcasterOffer = offer;
     console.log("📡 WebRTC offer переслан");
   });
 
@@ -147,8 +143,6 @@ io.on("connection", (socket) => {
       // Отправляем информацию об отключении
       io.to(roomId).emit("userLeft", {
         username: username,
-        isAdmin: isAdmin === "true",
-        isHost: user.isHost,
       });
       console.log("📢 Отправлено уведомление об отключении пользователя");
     }
