@@ -123,6 +123,13 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("broadcast-ended", { roomId, username });
   });
 
+  socket.on("delete-all-messages", ({ roomId }) => {
+    if (rooms[roomId]) {
+      rooms[roomId].messages = []; // Очищаем массив сообщений
+      io.to(roomId).emit("messages-deleted"); // Уведомляем всех в комнате
+      console.log(`🗑️ Все сообщения удалены в комнате: ${roomId}`);
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3001;
