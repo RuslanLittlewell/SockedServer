@@ -37,6 +37,7 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       users: [],
       messages: [],
+      broadcasterOffer: null
     };
   }
 
@@ -53,10 +54,6 @@ io.on("connection", (socket) => {
   // Добавление пользователя в комнату
   rooms[roomId].users.push(user);
 
-  // Если это хост, сохраняем его
-  if (user.isHost) {
-    rooms[roomId].host = username;
-  }
 
   // Отправка информации о подключении
   io.to(roomId).emit("userJoined", {
@@ -104,9 +101,15 @@ io.on("connection", (socket) => {
   });
 
   socket.on("offer", ({ offer, roomId, username }) => {
-    console.log("📡 Получен offer от Broadcaster");
     socket.to(roomId).emit("offer", { offer, username });
+    rooms[roomId].broadcasterOffer = offer;
   });
+
+  socket.on('join-room', () => {
+    if (rooms[roomId] && rooms[roomId].broadcasterOffer) {
+      socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
+    }
+  })
 
   socket.on("answer", ({ answer, roomId, username }) => {
     console.log("📡 Получен answer от Viewer");
@@ -114,20 +117,25 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ice-candidate", ({ candidate, roomId, username }) => {
-    console.log("📡 Получен ICE-кандидат");
     socket.to(roomId).emit("ice-candidate", { candidate, username });
   });
 
   socket.on("broadcast-ended", ({ roomId, username }) => {
-    console.log(`❌ Стрим завершён пользователем: ${username}`);
     socket.broadcast.emit("broadcast-ended", { roomId, username });
   });
+
+  socket.on("ask-private", ({roomId , username}) => {
+    io.to(roomId).emit("private-request", { username })
+  });
+
+  socket.on("user-accept-private", ({ roomId }) => {
+    io.to(roomId).emit("start-private");
+  })
 
   socket.on("delete-all-messages", ({ roomId }) => {
     if (rooms[roomId]) {
       rooms[roomId].messages = []; // Очищаем массив сообщений
       io.to(roomId).emit("messages-deleted"); // Уведомляем всех в комнате
-      console.log(`🗑️ Все сообщения удалены в комнате: ${roomId}`);
     }
   });
 });
