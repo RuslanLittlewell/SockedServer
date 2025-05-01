@@ -129,10 +129,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on('join-room', () => {
-    if (rooms[roomId] && rooms[roomId].broadcasterOffer) {
-      socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
+    if (rooms[roomId].broadcasterOffer) {
+      // socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
     }
-  })
+  });
 
   socket.on("answer", ({ answer, roomId, username }) => {
     console.log("📡 Получен answer от Viewer");
@@ -145,6 +145,7 @@ io.on("connection", (socket) => {
 
   socket.on("broadcast-ended", ({ roomId, username }) => {
     socket.broadcast.emit("broadcast-ended", { roomId, username });
+    rooms[roomId].broadcasterOffer = null
   });
 
   socket.on("ask-private", ({roomId , username}) => {
