@@ -49,13 +49,13 @@ io.on("connection", (socket) => {
     username: username,
   };
 
+  // Если это зритель и есть активный стрим, отправляем offer
   if (role === "viewer" && rooms[roomId].broadcasterOffer) {
     socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
   }
 
   // Добавление пользователя в комнату
   rooms[roomId].users.push(user);
-
 
   // Отправка информации о подключении
   io.to(roomId).emit("userJoined", {
@@ -86,20 +86,55 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("private-message", newMessage);
   });
 
+  // Обработка запроса на получение существующего offer
+  socket.on("get-offer", ({ roomId }) => {
+    console.log(rooms[roomId]?.broadcasterOffer)
+    if (rooms[roomId]?.broadcasterOffer) {
+      socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
+    }
+  });
 
+  // Обработка offer от стримера
+  socket.on("offer", ({ offer, roomId, username }) => {
+    console.log("📡 Получен offer от стримера");
+    socket.to(roomId).emit("offer", { offer, username });
+    rooms[roomId].broadcasterOffer = offer;
+  });
+
+  // Обработка answer от зрителя
+  socket.on("answer", ({ answer, roomId, username }) => {
+    console.log("📡 Получен answer от зрителя");
+    socket.to(roomId).emit("answer", { answer, username });
+  });
+
+  // Обработка ICE-кандидатов
+  socket.on("ice-candidate", ({ candidate, roomId, username }) => {
+    console.log('Получен ICE-кандидат от', username);
+    if (candidate) {
+      socket.to(roomId).emit("ice-candidate", { candidate, username });
+    }
+  });
+
+  // Обработка окончания трансляции
+  socket.on("broadcast-ended", ({ roomId, username }) => {
+    console.log("📡 Трансляция завершена");
+    socket.broadcast.emit("broadcast-ended", { roomId, username });
+    rooms[roomId].broadcasterOffer = null;
+  });
+
+  // Обработка отключения
   socket.on("disconnect", () => {
-
-
-    socket.broadcast.emit('callEnded')
+    console.log("📡 Пользователь отключился");
+    socket.broadcast.emit('callEnded');
 
     if (rooms[roomId]) {
       rooms[roomId].users = rooms[roomId].users.filter(
         (user) => user.id !== socket.id
       );
 
-      // Если отключился хост, очищаем его
-      if (rooms[roomId].host === username) {
-        rooms[roomId].host = undefined;
+      // Если отключился стример, очищаем его offer
+      if (rooms[roomId].broadcasterOffer) {
+        socket.broadcast.emit("broadcast-ended", { roomId, username });
       }
 
       // Отправляем информацию об отключении
@@ -109,44 +144,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Обработка новых сообщений
-  socket.on("chat message", (message) => {
-
-    const newMessage = {
-      ...message,
-      id: Date.now().toString(),
-      timestamp: new Date(),
-    };
-
-    rooms[roomId].messages.push(newMessage);
-
-    io.to(roomId).emit("chat message", newMessage);
-  });
-
-  socket.on("offer", ({ offer, roomId, username }) => {
-    socket.to(roomId).emit("offer", { offer, username });
-    rooms[roomId].broadcasterOffer = offer;
-  });
-
-  socket.on('join-room', () => {
-    if (rooms[roomId].broadcasterOffer) {
-      // socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
-    }
-  });
-
-  socket.on("answer", ({ answer, roomId, username }) => {
-    console.log("📡 Получен answer от Viewer");
-    socket.to(roomId).emit("answer", { answer, username });
-  });
-
-  socket.on("ice-candidate", ({ candidate, roomId, username }) => {
-    socket.to(roomId).emit("ice-candidate", { candidate, username });
-  });
-
-  socket.on("broadcast-ended", ({ roomId, username }) => {
-    socket.broadcast.emit("broadcast-ended", { roomId, username });
-    rooms[roomId].broadcasterOffer = null
-  });
+  // Остальные обработчики событий...
 
   socket.on("ask-private", ({roomId , username}) => {
     if (!rooms[roomId].privateMessages[username]) {
@@ -169,6 +167,7 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("messages-deleted"); // Уведомляем всех в комнате
     }
   });
+
 });
 
 const PORT = process.env.PORT || 3001;
