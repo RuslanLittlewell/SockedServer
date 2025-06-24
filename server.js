@@ -1,7 +1,7 @@
 const express = require("express");
 const { createServer } = require("http");
 const ws = require("socket.io");
-const { users } = require('./users');
+const { users } = require("./users");
 const cors = require("cors");
 
 const app = express();
@@ -39,7 +39,7 @@ io.on("connection", (socket) => {
       users: [],
       messages: [],
       broadcasterOffer: null,
-      privateMessages: {}
+      privateMessages: {},
     };
   }
 
@@ -62,16 +62,19 @@ io.on("connection", (socket) => {
     username: user.username,
   });
 
-  io.to(roomId).emit('usersData', users);
+  io.to(roomId).emit("usersData", users);
 
   // Отправка истории сообщений новому пользователю
   socket.emit("messageHistory", rooms[roomId].messages);
 
   socket.on("get-private-messages-history", ({ username }) => {
-    if(rooms[roomId].privateMessages[username]) {
-      socket.emit('send-private-message-history', rooms[roomId].privateMessages?.[username] || [])
+    if (rooms[roomId].privateMessages[username]) {
+      socket.emit(
+        "send-private-message-history",
+        rooms[roomId].privateMessages?.[username] || []
+      );
     }
-  })
+  });
 
   socket.on("private-message", ({ username, message }) => {
     const newMessage = {
@@ -88,7 +91,7 @@ io.on("connection", (socket) => {
 
   // Обработка запроса на получение существующего offer
   socket.on("get-offer", ({ roomId }) => {
-    console.log(rooms[roomId]?.broadcasterOffer)
+    console.log(rooms[roomId]?.broadcasterOffer);
     if (rooms[roomId]?.broadcasterOffer) {
       socket.emit("offer", { offer: rooms[roomId].broadcasterOffer });
     }
@@ -109,7 +112,7 @@ io.on("connection", (socket) => {
 
   // Обработка ICE-кандидатов
   socket.on("ice-candidate", ({ candidate, roomId, username }) => {
-    console.log('Получен ICE-кандидат от', username);
+    console.log("Получен ICE-кандидат от", username);
     if (candidate) {
       socket.to(roomId).emit("ice-candidate", { candidate, username });
     }
@@ -125,7 +128,7 @@ io.on("connection", (socket) => {
   // Обработка отключения
   socket.on("disconnect", () => {
     console.log("📡 Пользователь отключился");
-    socket.broadcast.emit('callEnded');
+    socket.broadcast.emit("callEnded");
 
     if (rooms[roomId]) {
       rooms[roomId].users = rooms[roomId].users.filter(
@@ -145,17 +148,16 @@ io.on("connection", (socket) => {
   });
 
   // Остальные обработчики событий...
-
-  socket.on("ask-private", ({roomId , username}) => {
+  socket.on("ask-private", ({ roomId, username }) => {
     if (!rooms[roomId].privateMessages[username]) {
       rooms[roomId].privateMessages[username] = [];
     }
-    io.to(roomId).emit("private-request", { username })
+    io.to(roomId).emit("private-request", { username });
   });
 
   socket.on("user-accept-private", ({ roomId }) => {
     io.to(roomId).emit("start-private");
-  })
+  });
 
   socket?.on("private-finished", ({ roomId }) => {
     io.to(roomId).emit("private-finished");
@@ -168,6 +170,19 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Обработка новых сообщений
+  socket.on("chat message", (message) => {
+    console.log(message);
+    const newMessage = {
+      ...message,
+      id: Date.now().toString(),
+      timestamp: new Date(),
+    };
+
+    rooms[roomId].messages.push(newMessage);
+
+    io.to(roomId).emit("chat message", newMessage);
+  });
 });
 
 const PORT = process.env.PORT || 3001;
