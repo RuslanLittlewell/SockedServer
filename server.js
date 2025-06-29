@@ -35,6 +35,7 @@ io.on("connection", (socket) => {
   if (!rooms[roomId]) {
     rooms[roomId] = {
       users: [],
+      usersList: [],
       messages: [],
       isLive: false,
       privateMessages: {},
@@ -49,16 +50,24 @@ io.on("connection", (socket) => {
   };
 
   rooms[roomId].users.push(user);
+  rooms[roomId].usersList = users;
 
   // Запрос офера при подключении
   socket.on("joined", ({ roomId }) => {
     io.to(roomId).emit("request-offer", { viewerSocketId: socket.id });
   });
 
-  io.to(roomId).emit("usersData", users);
+  io.to(roomId).emit("usersData", rooms[roomId].usersList);
 
   // Отправка истории сообщений новому пользователю
   socket.emit("messageHistory", rooms[roomId].messages);
+
+  socket.on('set-user-join', ({ id }) => {
+    const roomUsers = rooms[roomId].usersList;
+    const updateUsers = roomUsers.map(i => i.id === id ? ({ ...i, joined: !i.joined }) : i);
+    rooms[roomId].usersList = updateUsers;
+    io.to(roomId).emit("usersData", updateUsers);
+  })
 
   socket.on("get-private-messages-history", ({ username }) => {
     if (rooms[roomId].privateMessages[username]) {
