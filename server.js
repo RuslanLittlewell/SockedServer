@@ -72,6 +72,7 @@ io.on("connection", (socket) => {
   socket.on("private-message", ({ username, message }) => {
     const newMessage = {
       ...message,
+      toUser: username,
       id: Date.now().toString(),
       timestamp: new Date(),
     };
@@ -83,7 +84,6 @@ io.on("connection", (socket) => {
   });
 
   // --- Camera-share signaling ---
-  console.log(rooms)
   socket.on("offer", (data) => {
     rooms[roomId].offerVideoData = data.offer;
     const targetSocketId = data.to;
