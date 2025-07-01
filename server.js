@@ -21,11 +21,18 @@ const io = ws(server, {
 });
 
 const rooms = {};
-
 io.on("connection", (socket) => {
   const { roomId, username, role } = socket.handshake.query;
 
   if (!roomId || !username) {
+    socket.disconnect();
+    return;
+  }
+
+  if (role === "broadcaster" && rooms[roomId]) {
+    socket.emit("room-error", {
+      message: "Комната с таким ID уже существует. Выберите другой.",
+    });
     socket.disconnect();
     return;
   }
@@ -35,7 +42,7 @@ io.on("connection", (socket) => {
   if (!rooms[roomId]) {
     rooms[roomId] = {
       users: [],
-      usersList: [],
+      usersList: users,
       messages: [],
       isLive: false,
       privateMessages: {},
@@ -50,7 +57,6 @@ io.on("connection", (socket) => {
   };
 
   rooms[roomId].users.push(user);
-  rooms[roomId].usersList = users;
 
   // Запрос офера при подключении
   socket.on("joined", ({ roomId }) => {
@@ -60,7 +66,7 @@ io.on("connection", (socket) => {
   io.to(roomId).emit("usersData", rooms[roomId].usersList);
 
   // Отправка истории сообщений новому пользователю
-  socket.emit("messageHistory", rooms[roomId].messages);
+  io.to(roomId).emit("messageHistory", rooms[roomId].messages);
 
   socket.on('set-user-join', ({ id }) => {
     const roomUsers = rooms[roomId].usersList;
@@ -68,6 +74,10 @@ io.on("connection", (socket) => {
     rooms[roomId].usersList = updateUsers;
     io.to(roomId).emit("usersData", updateUsers);
   })
+
+  socket.on('get-all-private-messages', () => {
+    io.to(roomId).emit("get-all-private-messages", rooms[roomId].privateMessages);
+  });
 
   socket.on("get-private-messages-history", ({ username }) => {
     if (rooms[roomId].privateMessages[username]) {
@@ -104,6 +114,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("answer", (data) => {
+    console.log(data)
     rooms[roomId].isLive = true;
     socket.to(roomId).emit("answer", data);
   });
@@ -191,9 +202,31 @@ socket.on("screen-offer", (data) => {
   });
 
     socket.on("check-status", ({ roomId }) => {
-    io.to(roomId).emit("check-status", { isLive: rooms[roomId].isLive });
+    io.to(roomId).emit("check-status", { isLive: rooms[roomId]?.isLive || false });
   });
 
+});
+
+app.get("/rooms", (req, res) => {
+  const roomList = Object.entries(rooms).map(([roomId, room]) => ({
+    roomId,
+    usersCount: room.users.length,
+    isLive: room.isLive,
+    usernames: room.users.map(u => u.username),
+  }));
+
+  res.json(roomList);
+});
+
+app.delete("/rooms/:roomId", (req, res) => {
+  const { roomId } = req.params;
+
+  if (!rooms[roomId]) {
+    return res.status(404).json({ error: "Комната не найдена" });
+  }
+
+  delete rooms[roomId];
+  res.json({ success: true, message: `Комната ${roomId} удалена.` });
 });
 
 const PORT = process.env.PORT || 3001;
