@@ -1,11 +1,9 @@
 const express = require("express");
 const { createServer } = require("http");
 const ws = require("socket.io");
-const { users } = require("./users");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
 
 const server = createServer(app);
 const io = ws(server, {
@@ -21,43 +19,26 @@ const io = ws(server, {
 });
 
 const rooms = {};
+const roomsRouter = require("./routes/room");
+roomsRouter.init(rooms); // передаём rooms по ссылке
+
+app.use(cors());
+app.use(express.json());
+app.use("/rooms", roomsRouter);
+
 io.on("connection", (socket) => {
   const { roomId, username, role } = socket.handshake.query;
 
-  if (!roomId || !username) {
-    socket.disconnect();
-    return;
-  }
-
-  if (role === "broadcaster" && rooms[roomId]) {
-    socket.emit("room-error", {
-      message: "Комната с таким ID уже существует. Выберите другой.",
-    });
-    socket.disconnect();
-    return;
-  }
-
   socket.join(roomId);
-
-  if (!rooms[roomId]) {
-    rooms[roomId] = {
-      users: [],
-      usersList: users,
-      messages: [],
-      isLive: false,
-      privateMessages: {},
-      offerScreenData: null,
-      offerVideoData: null,
-    };
-  }
 
   const user = {
     id: socket.id,
     username: username,
   };
-
+  if(!rooms[roomId]) {
+    return
+  }
   rooms[roomId].users.push(user);
-
   // Запрос офера при подключении
   socket.on("joined", ({ roomId }) => {
     io.to(roomId).emit("request-offer", { viewerSocketId: socket.id });
@@ -113,9 +94,11 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("stream-started", ({ roomId }) => {
+    rooms[roomId].isLive = true
+  });
+
   socket.on("answer", (data) => {
-    console.log(data)
-    rooms[roomId].isLive = true;
     socket.to(roomId).emit("answer", data);
   });
 
@@ -137,7 +120,6 @@ socket.on("screen-offer", (data) => {
 });
 
   socket.on("screen-answer", (data) => {
-    rooms[roomId].isLive = true
     socket.to(roomId).emit("screen-answer", data);
   });
 
@@ -202,32 +184,12 @@ socket.on("screen-offer", (data) => {
   });
 
     socket.on("check-status", ({ roomId }) => {
-    io.to(roomId).emit("check-status", { isLive: rooms[roomId]?.isLive || false });
+      console.log(rooms[roomId])
+    io.to(roomId).emit("check-status", { isLive: rooms[roomId]?.isLive });
   });
-
 });
 
-app.get("/rooms", (req, res) => {
-  const roomList = Object.entries(rooms).map(([roomId, room]) => ({
-    roomId,
-    usersCount: room.users.length,
-    isLive: room.isLive,
-    usernames: room.users.map(u => u.username),
-  }));
 
-  res.json(roomList);
-});
-
-app.delete("/rooms/:roomId", (req, res) => {
-  const { roomId } = req.params;
-
-  if (!rooms[roomId]) {
-    return res.status(404).json({ error: "Комната не найдена" });
-  }
-
-  delete rooms[roomId];
-  res.json({ success: true, message: `Комната ${roomId} удалена.` });
-});
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
