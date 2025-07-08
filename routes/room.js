@@ -30,11 +30,26 @@ router.post("/", (req, res) => {
     offerScreenData: null,
     offerVideoData: null,
     tipMenu: [
-      {id: 1, value: 50, description: "Tip 50"},
-      {id: 2, value: 100, description: "Tip 100"},
-      {id: 3, value: 150, description: "Tip 150"},
-      {id: 4, value: 200, description: "Tip 200"},
-    ]
+      { id: 1, value: 11, description: "love you" },
+      { id: 2, value: 55, description: "tongue out" },
+      { id: 3, value: 77, description: "2 hand spanks" },
+      { id: 4, value: 88, description: "nipple flash" },
+      { id: 5, value: 110, description: "pussy flash" },
+      { id: 6, value: 111, description: "pussy tip" },
+      { id: 7, value: 160, description: "vibes" },
+      { id: 8, value: 166, description: "doggy without panties" },
+      { id: 9, value: 222, description: "play your song" },
+      { id: 10, value: 331, description: "heels on -off" },
+      { id: 11, value: 444, description: "DOMI tip controlled vibrator" },
+      { id: 12, value: 666, description: "wave pattern" },
+      { id: 13, value: 667, description: "pulse pattern" },
+      { id: 14, value: 777, description: "fireworks pattern (fav)" },
+      { id: 15, value: 778, description: "earthquake pattern" },
+      { id: 16, value: 999, description: "naked cat" },
+      { id: 17, value: 1111, description: "catclub" },
+      { id: 18, value: 1555, description: "love and appreciation for cat" },
+      { id: 19, value: 11111, description: "spoils" },
+    ],
   };
 
   res.json({ success: true, message: `Комната ${roomId} создана.` });

@@ -186,8 +186,12 @@ socket.on("screen-offer", (data) => {
     io.to(roomId).emit("chat message", newMessage);
   });
 
+    socket.on("update-tip-menu", ({ tipMenu }) => {
+      io.to(roomId).emit("update-tip-menu", { tipMenu });
+    });
+  
+
     socket.on("check-status", ({ roomId }) => {
-      console.log(rooms[roomId])
     io.to(roomId).emit("check-status", { isLive: rooms[roomId]?.isLive });
   });
 });
