@@ -29,6 +29,12 @@ router.post("/", (req, res) => {
     privateMessages: {},
     offerScreenData: null,
     offerVideoData: null,
+    tipMenu: [
+      {id: 1, value: 50, description: "Tip 50"},
+      {id: 2, value: 100, description: "Tip 100"},
+      {id: 3, value: 150, description: "Tip 150"},
+      {id: 4, value: 200, description: "Tip 200"},
+    ]
   };
 
   res.json({ success: true, message: `Комната ${roomId} создана.` });

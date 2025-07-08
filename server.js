@@ -20,11 +20,14 @@ const io = ws(server, {
 
 const rooms = {};
 const roomsRouter = require("./routes/room");
-roomsRouter.init(rooms); // передаём rooms по ссылке
+const tipMenuRouter = require("./routes/tipMenu");
+roomsRouter.init(rooms);
+tipMenuRouter.init(rooms); 
 
 app.use(cors());
 app.use(express.json());
 app.use("/rooms", roomsRouter);
+app.use("/tip-menu", tipMenuRouter);
 
 io.on("connection", (socket) => {
   const { roomId, username, role } = socket.handshake.query;
